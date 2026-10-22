@@ -101,6 +101,21 @@ describe("난이도", () => {
     expect(1 / early.speed).toBeGreaterThanOrEqual(9);
   });
 
+  test("우리말은 같은 시점의 단어보다 느리게 떨어지고, 그래도 시간이 지나면 빨라진다", () => {
+    const word = difficultyAt(30, "word-learning").speed;
+    const ours = difficultyAt(30, "our-words").speed;
+
+    expect(ours).toBeLessThan(word);
+    expect(difficultyAt(60, "our-words").speed).toBeGreaterThan(ours);
+  });
+
+  test("우리말 판의 낙하 문구는 같은 시간에 단어 판보다 덜 내려간다", () => {
+    const fall = (kind: "word-learning" | "our-words") =>
+      tick(startGame(kind, ctx()), 2, ctx()).items[0].y;
+
+    expect(fall("our-words")).toBeLessThan(fall("word-learning"));
+  });
+
   test("동시에 떨어지는 개수는 그 시점 난이도의 동시 개수를 넘지 않는다", () => {
     const phrases = Array.from({ length: 50 }, (_, i) => `낱말${i}`);
     let state = startGame("our-words", ctx(phrases));

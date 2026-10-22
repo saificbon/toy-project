@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PauseIcon, PlayIcon, PowerIcon, StopIcon } from "@phosphor-icons/react";
+import { PauseIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,10 +36,9 @@ function positionOf({ x, y }: Pick<FallingPhrase, "x" | "y">) {
 }
 
 export function TypingGame() {
-  const [game, setGame] = useState(() => createIdleState("word-learning"));
+  const [game, setGame] = useState(() => createIdleState("our-words"));
   const [bursts, setBursts] = useState<Burst[]>([]);
   const [input, setInput] = useState("");
-  const [exited, setExited] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { phase, kind } = game;
@@ -75,13 +74,6 @@ export function TypingGame() {
     setGame((current) => (current.phase === "paused" ? resumeGame(current) : pauseGame(current)));
   }
 
-  function exitApp() {
-    setGame((current) => endGame(current));
-    setExited(true);
-    // 스크립트로 연 탭이 아니면 브라우저가 막으므로, 막혀도 안내 화면이 남는다.
-    window.close();
-  }
-
   function submit(value: string) {
     const { state, removed } = submitInput(game, value);
     setGame(state);
@@ -106,7 +98,7 @@ export function TypingGame() {
             orientation="vertical"
             className="w-full"
             value={[kind]}
-            disabled={isRunning || exited}
+            disabled={isRunning}
             onValueChange={(next) => {
               if (next[0]) setGame(createIdleState(next[0] as GameKind));
             }}
@@ -121,7 +113,7 @@ export function TypingGame() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Button size="lg" onClick={start} disabled={isRunning || exited}>
+          <Button size="lg" onClick={start} disabled={isRunning}>
             <PlayIcon data-icon="inline-start" />
             게임 시작
           </Button>
@@ -129,7 +121,7 @@ export function TypingGame() {
             size="lg"
             variant="secondary"
             onClick={togglePause}
-            disabled={!isRunning || exited}
+            disabled={!isRunning}
           >
             {phase === "paused" ? (
               <PlayIcon data-icon="inline-start" />
@@ -142,124 +134,109 @@ export function TypingGame() {
             size="lg"
             variant="outline"
             onClick={() => setGame((current) => endGame(current))}
-            disabled={!isRunning || exited}
+            disabled={!isRunning}
           >
             <StopIcon data-icon="inline-start" />
             게임 종료
-          </Button>
-          <Button size="lg" variant="destructive" onClick={exitApp} disabled={exited}>
-            <PowerIcon data-icon="inline-start" />
-            앱 종료
           </Button>
         </div>
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col gap-3 p-4 md:p-6">
-        {exited ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 border bg-muted/30 p-6 text-center">
-            <p className="font-heading text-lg font-semibold">앱이 종료되었습니다</p>
-            <p className="text-sm text-muted-foreground">
-              다시 하려면 페이지를 새로고침하세요.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div role="status" aria-label="게임 현황" className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="h-7 px-3 text-sm">
-                총 개수 <strong data-testid="total">{game.total}</strong>
-              </Badge>
-              <Badge variant="secondary" className="h-7 px-3 text-sm">
-                맞은 개수 <strong data-testid="hit">{game.hit}</strong>
-              </Badge>
-              <Badge variant="destructive" className="h-7 px-3 text-sm">
-                놓친 개수 <strong data-testid="missed">{game.missed}</strong>
-              </Badge>
-            </div>
+        <div role="status" aria-label="게임 현황" className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="h-7 px-3 text-sm">
+            총 개수 <strong data-testid="total">{game.total}</strong>
+          </Badge>
+          <Badge variant="secondary" className="h-7 px-3 text-sm">
+            맞은 개수 <strong data-testid="hit">{game.hit}</strong>
+          </Badge>
+          <Badge variant="destructive" className="h-7 px-3 text-sm">
+            놓친 개수 <strong data-testid="missed">{game.missed}</strong>
+          </Badge>
+        </div>
 
-            <div
-              data-testid="play-area"
-              className="relative min-h-[60dvh] flex-1 overflow-hidden border bg-muted/30 md:min-h-0"
+        <div
+          data-testid="play-area"
+          className="relative min-h-[60dvh] flex-1 overflow-hidden border bg-muted/30 md:min-h-0"
+        >
+          {game.items.map((item) => (
+            <span
+              key={item.id}
+              data-testid="falling-phrase"
+              className="absolute border bg-card px-3 py-1 text-base font-medium whitespace-nowrap text-card-foreground shadow-sm"
+              style={positionOf(item)}
             >
-              {game.items.map((item) => (
-                <span
-                  key={item.id}
-                  data-testid="falling-phrase"
-                  className="absolute border bg-card px-3 py-1 text-base font-medium whitespace-nowrap text-card-foreground shadow-sm"
-                  style={positionOf(item)}
-                >
-                  {item.text}
-                </span>
-              ))}
+              {item.text}
+            </span>
+          ))}
 
-              {bursts.map((burst) => (
-                <span
-                  key={burst.id}
-                  data-testid="burst"
-                  aria-hidden
-                  className="typing-burst pointer-events-none absolute"
-                  style={positionOf(burst)}
-                  onAnimationEnd={(event) => {
-                    if (event.target !== event.currentTarget) return;
-                    setBursts((current) => current.filter((b) => b.id !== burst.id));
-                  }}
-                >
-                  <span className="typing-burst-text border bg-card px-3 py-1 text-base font-medium whitespace-nowrap text-card-foreground">
-                    {burst.text}
-                  </span>
-                  {Array.from({ length: BURST_PARTICLES }, (_, i) => (
-                    <i
-                      key={i}
-                      className="typing-burst-particle"
-                      style={{ "--angle": `${(360 / BURST_PARTICLES) * i}deg` } as React.CSSProperties}
-                    />
-                  ))}
-                </span>
+          {bursts.map((burst) => (
+            <span
+              key={burst.id}
+              data-testid="burst"
+              aria-hidden
+              className="typing-burst pointer-events-none absolute"
+              style={positionOf(burst)}
+              onAnimationEnd={(event) => {
+                if (event.target !== event.currentTarget) return;
+                setBursts((current) => current.filter((b) => b.id !== burst.id));
+              }}
+            >
+              <span className="typing-burst-text border bg-card px-3 py-1 text-base font-medium whitespace-nowrap text-card-foreground">
+                {burst.text}
+              </span>
+              {Array.from({ length: BURST_PARTICLES }, (_, i) => (
+                <i
+                  key={i}
+                  className="typing-burst-particle"
+                  style={{ "--angle": `${(360 / BURST_PARTICLES) * i}deg` } as React.CSSProperties}
+                />
               ))}
+            </span>
+          ))}
 
-              {phase !== "playing" && (
-                <div
-                  data-testid="overlay"
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/70 p-6 text-center"
-                >
-                  {phase === "idle" && (
-                    <>
-                      <p className="font-heading text-lg font-semibold">준비되었습니다</p>
-                      <p className="text-sm text-muted-foreground">
-                        게임 종류를 고르고 게임 시작을 누르세요.
-                      </p>
-                    </>
-                  )}
-                  {phase === "paused" && (
-                    <p className="font-heading text-lg font-semibold">일시정지</p>
-                  )}
-                  {phase === "ended" && (
-                    <>
-                      <p className="font-heading text-lg font-semibold">게임이 끝났습니다</p>
-                      <p className="text-sm text-muted-foreground">
-                        총 {game.total}개 중 {game.hit}개를 맞혔고 {game.missed}개를 놓쳤습니다.
-                      </p>
-                    </>
-                  )}
-                </div>
+          {phase !== "playing" && (
+            <div
+              data-testid="overlay"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-background/70 p-6 text-center"
+            >
+              {phase === "idle" && (
+                <>
+                  <p className="font-heading text-lg font-semibold">준비되었습니다</p>
+                  <p className="text-sm text-muted-foreground">
+                    게임 종류를 고르고 게임 시작을 누르세요.
+                  </p>
+                </>
+              )}
+              {phase === "paused" && (
+                <p className="font-heading text-lg font-semibold">일시정지</p>
+              )}
+              {phase === "ended" && (
+                <>
+                  <p className="font-heading text-lg font-semibold">게임이 끝났습니다</p>
+                  <p className="text-sm text-muted-foreground">
+                    총 {game.total}개 중 {game.hit}개를 맞혔고 {game.missed}개를 놓쳤습니다.
+                  </p>
+                </>
               )}
             </div>
+          )}
+        </div>
 
-            <Input
-              ref={inputRef}
-              aria-label="타이핑 입력"
-              placeholder="떨어지는 글자를 똑같이 입력하고 Enter를 누르세요"
-              autoComplete="off"
-              value={input}
-              disabled={!isPlaying}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                // 한글 조합 중에도 입력창에는 마지막 글자까지 담겨 있으므로 그 값으로 판정한다.
-                submit(event.currentTarget.value);
-              }}
-            />
-          </>
-        )}
+        <Input
+          ref={inputRef}
+          aria-label="타이핑 입력"
+          placeholder="떨어지는 글자를 똑같이 입력하고 Enter를 누르세요"
+          autoComplete="off"
+          value={input}
+          disabled={!isPlaying}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            // 한글 조합 중에도 입력창에는 마지막 글자까지 담겨 있으므로 그 값으로 판정한다.
+            submit(event.currentTarget.value);
+          }}
+        />
       </section>
     </main>
   );

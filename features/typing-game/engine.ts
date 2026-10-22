@@ -32,10 +32,16 @@ export const MIN_TOTAL_FOR_GAME_OVER = 20;
 /** 놓친 개수가 총 개수의 이 비율 이상이면 판이 끝난다. */
 export const MISS_LIMIT_RATIO = 0.1;
 
-export function difficultyAt(elapsed: number) {
+/** 낙하 문구가 긴 게임 종류는 읽고 칠 시간이 더 필요해 낙하를 늦춘다. */
+const SPEED_SCALE: Record<GameKind, number> = {
+  "word-learning": 1,
+  "our-words": 0.3,
+};
+
+export function difficultyAt(elapsed: number, kind: GameKind = "word-learning") {
   return {
-    /** 초당 낙하 진행도. 처음에는 위에서 바닥까지 10초가 걸린다. */
-    speed: Math.min(0.1 + elapsed * 0.0015, 0.3),
+    /** 초당 낙하 진행도. 단어는 처음에 위에서 바닥까지 10초, 우리말은 약 14초가 걸린다. */
+    speed: Math.min(0.1 + elapsed * 0.0015, 0.3) * SPEED_SCALE[kind],
     maxConcurrent: Math.min(2 + Math.floor(elapsed / 15), 8),
     spawnInterval: Math.max(1.2, 3 - elapsed * 0.015),
   };
@@ -62,7 +68,7 @@ export function startGame(kind: GameKind, context: GameContext): GameState {
 export function tick(state: GameState, dt: number, context: GameContext): GameState {
   if (state.phase !== "playing") return state;
 
-  const { speed } = difficultyAt(state.elapsed);
+  const { speed } = difficultyAt(state.elapsed, state.kind);
   const moved = state.items.map((item) => ({ ...item, y: item.y + speed * dt }));
   const falling = moved.filter((item) => item.y < 1);
 

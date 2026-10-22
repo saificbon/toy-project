@@ -1,11 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { expect, test } from "vitest";
 
 import { TypingGame } from "@/features/typing-game/typing-game";
-
-beforeEach(() => {
-  window.close = vi.fn();
-});
 
 const button = (name: string) => screen.getByRole("button", { name });
 const count = (id: "total" | "hit" | "missed") => screen.getByTestId(id).textContent;
@@ -21,20 +17,21 @@ function typeAndEnter(value: string) {
   fireEvent.keyDown(input, { key: "Enter" });
 }
 
-test("처음에는 대기 상태라 시작과 앱 종료만 누를 수 있다", () => {
+test("처음에는 대기 상태라 시작만 누를 수 있다", () => {
   render(<TypingGame />);
 
   expect(button("게임 시작")).toBeEnabled();
   expect(button("일시정지")).toBeDisabled();
   expect(button("게임 종료")).toBeDisabled();
-  expect(button("앱 종료")).toBeEnabled();
   expect(screen.getByLabelText("타이핑 입력")).toBeDisabled();
-  expect(screen.getByRole("button", { name: "단어 학습" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "우리말 학습" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "단어" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "우리말" })).toBeInTheDocument();
 });
 
-test("단어 학습으로 시작하면 콜론 없이 단어와 뜻이 공백으로 이어진 한 줄이 떨어진다", () => {
+test("처음에는 우리말이 선택되어 있고, 시작하면 콜론 없이 단어와 뜻이 공백으로 이어진 한 줄이 떨어진다", () => {
   render(<TypingGame />);
+
+  expect(screen.getByRole("button", { name: "우리말" })).toHaveAttribute("aria-pressed", "true");
 
   const phrase = start();
 
@@ -43,9 +40,9 @@ test("단어 학습으로 시작하면 콜론 없이 단어와 뜻이 공백으�
   expect(count("total")).toBe("1");
 });
 
-test("우리말 학습으로 시작하면 낱말 하나가 떨어진다", () => {
+test("단어으로 바꿔 시작하면 낱말 하나가 떨어진다", () => {
   render(<TypingGame />);
-  fireEvent.click(screen.getByRole("button", { name: "우리말 학습" }));
+  fireEvent.click(screen.getByRole("button", { name: "단어" }));
 
   const phrase = start();
 
@@ -80,7 +77,7 @@ test("진행 중에는 게임 종류와 시작을 바꿀 수 없다", () => {
   start();
 
   expect(button("게임 시작")).toBeDisabled();
-  expect(screen.getByRole("button", { name: "우리말 학습" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "단어" })).toBeDisabled();
   expect(button("일시정지")).toBeEnabled();
   expect(button("게임 종료")).toBeEnabled();
 });
@@ -110,21 +107,10 @@ test("게임 종료 뒤에도 마지막 개수가 남고 다시 시작하면 0�
   expect(screen.getByText(/게임이 끝났습니다/)).toBeInTheDocument();
   expect(count("hit")).toBe("1");
   expect(button("게임 시작")).toBeEnabled();
-  expect(screen.getByRole("button", { name: "우리말 학습" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "단어" })).toBeEnabled();
 
   fireEvent.click(button("게임 시작"));
 
   expect(count("hit")).toBe("0");
   expect(count("total")).toBe("1");
-});
-
-test("앱 종료를 누르면 종료 안내가 나타나고 탭 닫기를 시도한다", () => {
-  render(<TypingGame />);
-  start();
-
-  fireEvent.click(button("앱 종료"));
-
-  expect(screen.getByText("앱이 종료되었습니다")).toBeInTheDocument();
-  expect(window.close).toHaveBeenCalled();
-  expect(button("게임 시작")).toBeDisabled();
 });
